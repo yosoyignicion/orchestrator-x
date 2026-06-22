@@ -1,0 +1,14 @@
+{
+  "name": "orchestrator-x",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SaaS de auditoría automática de arquitectura web con pipeline de IA",
+  "scripts": {
+    "dev": "concurrently -n fe,be -c cyan,magenta \"pnpm --filter frontend dev\" \"make backend-dev\"",
+    "build": "pnpm --filter frontend build",
+    "lint": "pnpm --filter frontend lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

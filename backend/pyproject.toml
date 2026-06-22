@@ -1,0 +1,19 @@
+[project]
+name = "orchestrator-x-backend"
+version = "0.1.0"
+description = "Backend de extracción y pipeline de agentes IA para Orchestrator-X"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "pydantic>=2.10.0",
+    "httpx>=0.28.0",
+    "playwright>=1.50.0",
+    "python-wappalyzer>=0.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
