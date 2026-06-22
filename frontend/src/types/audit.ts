@@ -92,3 +92,9 @@ export interface AuditReport {
   summary: string;
   error: string | null;
 }
+
+export interface OllamaModel {
+  name: string;
+  size_bytes: number;
+  modified_at: string;
+}

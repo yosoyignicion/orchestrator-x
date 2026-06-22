@@ -1,19 +1,33 @@
 /** API client for Orchestrator-X backend. */
 
-import type { AuditReport, ExtractionResult } from "../types/audit";
+import type { AuditReport, ExtractionResult, OllamaModel } from "../types/audit";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const AUDIT_TIMEOUT_MS = 120_000;
 
-export async function auditUrl(url: string): Promise<AuditReport> {
+export async function fetchModels(): Promise<OllamaModel[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/models`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.models ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function auditUrl(url: string, model?: string): Promise<AuditReport> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), AUDIT_TIMEOUT_MS);
+
+  const body: Record<string, unknown> = { url };
+  if (model) body.model = model;
 
   try {
     const res = await fetch(`${API_BASE}/api/audit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     });
 

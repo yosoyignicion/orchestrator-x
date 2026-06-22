@@ -43,7 +43,7 @@ export default function AuditDashboard() {
     }
   }, [report, showReport]);
 
-  const handleAudit = async (url: string) => {
+  const handleAudit = async (url: string, model?: string) => {
     setIsLoading(true);
     setError(null);
     setReport(null);
@@ -55,7 +55,7 @@ export default function AuditDashboard() {
     }, 5000);
 
     try {
-      const result = await auditUrl(url);
+      const result = await auditUrl(url, model);
       setReport(result);
       if (!result.error) {
         // Stagger reveal

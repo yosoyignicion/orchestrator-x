@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.extract import router as extract_router
 from app.api.audit import router as audit_router
+from app.api.models import router as models_router
 
 app = FastAPI(
     title="Orchestrator-X API",
@@ -20,6 +21,7 @@ app.add_middleware(
 
 app.include_router(extract_router)
 app.include_router(audit_router)
+app.include_router(models_router)
 
 
 @app.get("/api/health")

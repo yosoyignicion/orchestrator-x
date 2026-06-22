@@ -29,10 +29,11 @@ OLLAMA_GENERATE_URL = f"{OLLAMA_BASE_URL}/api/generate"
 REQUEST_TIMEOUT = 60  # GPU inference ~17s, generous buffer
 
 
-async def _call_ollama(system: str, user_prompt: str) -> str | None:
-    """Single Ollama API call."""
+async def _call_ollama(system: str, user_prompt: str, model: str | None = None) -> str | None:
+    """Single Ollama API call. Uses the given model or falls back to LLM_MODEL."""
+    active_model = model or LLM_MODEL
     payload = {
-        "model": LLM_MODEL,
+        "model": active_model,
         "system": system,
         "prompt": user_prompt,
         "stream": False,
@@ -44,7 +45,7 @@ async def _call_ollama(system: str, user_prompt: str) -> str | None:
             resp.raise_for_status()
             return resp.json().get("response", "").strip()
     except Exception as e:
-        log.warning("Ollama error: %s", e)
+        log.warning("Ollama error (%s): %s", active_model, e)
         return None
 
 
@@ -111,12 +112,13 @@ def _sanitize_niche(raw: str) -> str:
     return val if val in VALID_NICHES else "other"
 
 
-async def run_pipeline(extraction: ExtractionResult) -> AuditReport:
+async def run_pipeline(extraction: ExtractionResult, model_override: str | None = None) -> AuditReport:
     """Run the unified audit pipeline — single Ollama call."""
     context = _build_context(extraction)
 
-    log.info("Calling unified agent pipeline (Ollama + %s)...", LLM_MODEL)
-    raw = await _call_ollama(UNIFIED_AGENT_SYSTEM, context)
+    active = model_override or LLM_MODEL
+    log.info("Calling unified agent pipeline (Ollama + %s)...", active)
+    raw = await _call_ollama(UNIFIED_AGENT_SYSTEM, context, model=model_override)
     data = _extract_json(raw) or {}
 
     if not data:

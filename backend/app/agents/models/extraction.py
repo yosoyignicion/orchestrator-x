@@ -57,3 +57,4 @@ class ExtractionResult(BaseModel):
 
 class ExtractionRequest(BaseModel):
     url: str = Field(..., description="URL to audit", min_length=4)
+    model: str | None = Field(default=None, description="Ollama model name to use for the audit pipeline")

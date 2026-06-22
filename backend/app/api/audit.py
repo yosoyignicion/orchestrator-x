@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api", tags=["audit"])
 @router.post("/audit", response_model=AuditReport)
 async def audit_webpage(req: ExtractionRequest) -> AuditReport:
     """Full audit pipeline: extract → business analysis → technical audit → solutions."""
-    log.info("Audit requested for %s", req.url)
+    log.info("Audit requested for %s (model=%s)", req.url, req.model or "default")
 
     # Step 1: Extraction (zero LLM tokens)
     extraction: ExtractionResult = await extract_url(req.url, timeout_ms=EXTRACT_TIMEOUT_MS)
@@ -34,8 +34,8 @@ async def audit_webpage(req: ExtractionRequest) -> AuditReport:
         extraction.performance.page_size_bytes // 1024,
     )
 
-    # Step 2: Agent pipeline (Ollama + gemma3:4b via Vulkan GPU)
-    report = await run_pipeline(extraction)
+    # Step 2: Agent pipeline (Ollama — model selected by user or default)
+    report = await run_pipeline(extraction, model_override=req.model)
 
     if report.error:
         log.warning("Pipeline error for %s: %s", req.url, report.error)
