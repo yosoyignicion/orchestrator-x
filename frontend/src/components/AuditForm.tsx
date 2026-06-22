@@ -11,29 +11,36 @@ interface Props {
   isLoading: boolean;
 }
 
+type BackendStatus = "checking" | "online" | "offline";
+type OllamaStatus = "checking" | "online" | "offline" | "no_models";
+
 export default function AuditForm({ onAudit, isLoading }: Props) {
   const [url, setUrl] = useState("");
   const [models, setModels] = useState<OllamaModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
-  const [ollamaStatus, setOllamaStatus] = useState<"loading" | "online" | "offline" | "no_models">("loading");
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>("checking");
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>("checking");
 
   useEffect(() => {
     (async () => {
+      // Step 1: check backend reachability
+      try {
+        const res = await fetch("http://localhost:8000/api/health", { signal: AbortSignal.timeout(3000) });
+        if (!res.ok) throw new Error("health not ok");
+        setBackendStatus("online");
+      } catch {
+        setBackendStatus("offline");
+        return; // stop — can't query Ollama without backend proxy
+      }
+
+      // Step 2: get models via backend proxy (avoids browser CORS to Ollama)
       const list = await fetchModels();
       setModels(list);
       if (list.length > 0) {
-        // Pre-select the first model
         setSelectedModel(list[0].name);
         setOllamaStatus("online");
       } else {
-        // Try a direct health check to distinguish "offline" from "no models"
-        try {
-          const h = await fetch("http://localhost:11434/api/tags", { signal: AbortSignal.timeout(3000) });
-          if (h.ok) setOllamaStatus("no_models");
-          else setOllamaStatus("offline");
-        } catch {
-          setOllamaStatus("offline");
-        }
+        setOllamaStatus("no_models");
       }
     })();
   }, []);
@@ -43,14 +50,24 @@ export default function AuditForm({ onAudit, isLoading }: Props) {
     if (url.trim()) onAudit(url.trim(), selectedModel || undefined);
   };
 
-  const statusIcon = () => {
-    switch (ollamaStatus) {
-      case "loading": return <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Detectando..." />;
-      case "online": return <span className="h-2 w-2 rounded-full bg-green-400" title={`${models.length} modelo(s) disponible(s)`} />;
-      case "no_models": return <span className="h-2 w-2 rounded-full bg-amber-500" title="Ollama activo, 0 modelos" />;
-      case "offline": return <span className="h-2 w-2 rounded-full bg-red-400" title="Ollama no responde" />;
+  const backendDot = () => {
+    switch (backendStatus) {
+      case "checking": return <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Verificando backend..." />;
+      case "online": return <span className="h-2 w-2 rounded-full bg-green-400" title="Backend conectado" />;
+      case "offline": return <span className="h-2 w-2 rounded-full bg-red-500" title="Backend no responde" />;
     }
   };
+
+  const ollamaDot = () => {
+    switch (ollamaStatus) {
+      case "checking": return <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" title="Detectando modelos..." />;
+      case "online": return <span className="h-2 w-2 rounded-full bg-green-400" title={`${models.length} modelo(s)`} />;
+      case "no_models": return <span className="h-2 w-2 rounded-full bg-amber-500" title="Ollama activo, sin modelos" />;
+      case "offline": return <span className="h-2 w-2 rounded-full bg-red-500" title="Ollama no accesible desde backend" />;
+    }
+  };
+
+  const canAudit = backendStatus === "online" && ollamaStatus === "online" && !isLoading;
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
@@ -62,19 +79,24 @@ export default function AuditForm({ onAudit, isLoading }: Props) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             required
-            disabled={isLoading}
-            className="h-12 w-full bg-card pr-10 text-base shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500/50"
+            disabled={isLoading || backendStatus !== "online"}
+            className="h-12 w-full bg-card pr-10 text-base shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-[#ED2100]/50"
           />
           {isLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#ED2100] border-t-transparent" />
             </div>
           )}
         </div>
-        <Button type="submit" size="lg" disabled={isLoading || ollamaStatus === "offline"} className="h-12 min-w-[120px] px-8 font-semibold">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!canAudit}
+          className="h-12 min-w-[120px] bg-[#ED2100] px-8 font-semibold text-white hover:bg-[#ED2100]/90 disabled:opacity-50"
+        >
           {isLoading ? (
             <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
               Auditando
             </span>
           ) : (
@@ -83,17 +105,14 @@ export default function AuditForm({ onAudit, isLoading }: Props) {
         </Button>
       </form>
 
-      {/* Model selector row */}
-      <div className="flex items-center justify-center gap-3 text-xs">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          {statusIcon()}
-          <span>
-            {ollamaStatus === "loading" && "Detectando Ollama..."}
-            {ollamaStatus === "offline" && "Ollama offline — audits requieren el modelo local"}
-            {ollamaStatus === "no_models" && "Ollama activo — pulsa pull de un modelo (ej: gemma3:4b)"}
-            {ollamaStatus === "online" && `${models.length} modelo(s) disponible(s)`}
-          </span>
-        </div>
+      {/* Status row */}
+      <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          {backendDot()} Backend
+        </span>
+        <span className="flex items-center gap-1.5">
+          {ollamaDot()} Modelos
+        </span>
 
         {models.length > 0 && (
           <select
@@ -108,6 +127,14 @@ export default function AuditForm({ onAudit, isLoading }: Props) {
               </option>
             ))}
           </select>
+        )}
+
+        {ollamaStatus === "no_models" && (
+          <span className="text-amber-400">→ Ejecuta: <code className="bg-card px-1 rounded">ollama pull gemma3:4b</code></span>
+        )}
+
+        {backendStatus === "offline" && (
+          <span className="text-red-400">→ Arranca: <code className="bg-card px-1 rounded">make dev</code></span>
         )}
       </div>
     </div>
