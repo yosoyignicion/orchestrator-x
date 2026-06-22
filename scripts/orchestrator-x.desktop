@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Orchestrator-X
+Comment=Arranca el SaaS de auditoría web con IA (local)
+Exec=/home/ignicion/hermes-desktop/workspace/workflow/web-project/Orchestrator-X/scripts/start-dev.sh
+Icon=/home/ignicion/hermes-desktop/workspace/workflow/web-project/Orchestrator-X/frontend/public/globe.svg
+Terminal=true
+Categories=Development;Web;
+StartupNotify=true
