@@ -17,13 +17,13 @@ echo ""
   sleep 12
   URL="http://localhost:3000"
   if command -v firefox &>/dev/null; then
-    firefox "$URL" &
+    firefox "$URL" &>/dev/null &
   elif command -v xdg-open &>/dev/null; then
     xdg-open "$URL"
   elif command -v sensible-browser &>/dev/null; then
     sensible-browser "$URL"
   else
-    echo "⚠️  No se pudo abrir el navegador. Abre manualmente: $URL"
+    echo "⚠️  Abre manualmente: $URL"
   fi
 ) &
 
