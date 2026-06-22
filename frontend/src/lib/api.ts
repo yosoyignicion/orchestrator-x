@@ -2,7 +2,7 @@
 
 import type { AuditReport, ExtractionResult, OllamaModel } from "../types/audit";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = ""; // relative — Next.js rewrites /api/* → backend
 const AUDIT_TIMEOUT_MS = 120_000;
 
 export async function fetchModels(): Promise<OllamaModel[]> {

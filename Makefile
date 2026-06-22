@@ -1,7 +1,8 @@
 .PHONY: dev backend-dev install clean
 
 # ─── Dev loop ────────────────────────────────────────────────
-dev: frontend-dev backend-dev
+dev:
+	pnpm dev
 
 frontend-dev:
 	cd frontend && pnpm dev
