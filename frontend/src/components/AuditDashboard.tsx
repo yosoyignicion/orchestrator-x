@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
@@ -14,24 +15,25 @@ import AuditForm from "@/components/AuditForm";
 import ConversionPenalty from "@/components/ConversionPenalty";
 import BottleneckList from "@/components/BottleneckList";
 import AIRecommendations from "@/components/AIRecommendations";
-import { auditUrl } from "@/lib/api";
-import type { AuditReport } from "@/types/audit";
+import { enqueueJob, subscribeJob } from "@/lib/api";
+import type { AuditReport, Job } from "@/types/audit";
 
 const SCAN_PHRASES = [
-  "Lanzando navegador headless...",
-  "Extrayendo estructura del DOM...",
+  "Encolando auditoría...",
+  "Iniciando extracción de datos...",
   "Analizando tecnologías y frameworks...",
-  "Midiendo rendimiento y seguridad...",
   "Consultando agentes de IA...",
   "Generando reporte personalizado...",
 ];
 
 export default function AuditDashboard() {
+  const router = useRouter();
   const [report, setReport] = useState<AuditReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scanPhase, setScanPhase] = useState(0);
   const [showReport, setShowReport] = useState(false);
+  const [lastJobId, setLastJobId] = useState<string | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to results
@@ -43,31 +45,57 @@ export default function AuditDashboard() {
     }
   }, [report, showReport]);
 
-  const handleAudit = async (url: string, model?: string) => {
+  // Watch job progress via SSE after enqueue
+  useEffect(() => {
+    if (!lastJobId) return;
+
+    const ctrl = subscribeJob(lastJobId, (job: Job) => {
+      if (job.status === "done" && job.result) {
+        try {
+          const parsed: AuditReport = JSON.parse(job.result);
+          setReport(parsed);
+          if (!parsed.error) {
+            setTimeout(() => setShowReport(true), 200);
+          } else {
+            setError(parsed.error);
+          }
+        } catch {
+          setError("Error al parsear el resultado");
+        }
+        setIsLoading(false);
+        setLastJobId(null);
+      } else if (job.status === "error") {
+        setError(job.error || "Error en la auditoría");
+        setIsLoading(false);
+        setLastJobId(null);
+      } else {
+        // Update scan phase based on progress
+        const phase = Math.min(
+          Math.floor((job.progress / 100) * SCAN_PHRASES.length),
+          SCAN_PHRASES.length - 1,
+        );
+        setScanPhase(phase);
+      }
+    });
+
+    return () => ctrl.abort();
+  }, [lastJobId]);
+
+  const handleAudit = async (url: string) => {
     setIsLoading(true);
     setError(null);
     setReport(null);
     setShowReport(false);
     setScanPhase(0);
 
-    const phaseInterval = setInterval(() => {
-      setScanPhase((p) => Math.min(p + 1, SCAN_PHRASES.length - 1));
-    }, 5000);
-
     try {
-      const result = await auditUrl(url, model);
-      setReport(result);
-      if (!result.error) {
-        // Stagger reveal
-        setTimeout(() => setShowReport(true), 200);
-      } else {
-        setError(result.error);
-      }
+      const { job_id } = await enqueueJob(url);
+      setLastJobId(job_id);
+      // Redirect to audit detail so user can follow progress
+      router.push(`/audit/${job_id}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error inesperado";
       setError(msg);
-    } finally {
-      clearInterval(phaseInterval);
       setIsLoading(false);
     }
   };
@@ -76,6 +104,7 @@ export default function AuditDashboard() {
     setError(null);
     setReport(null);
     setShowReport(false);
+    setLastJobId(null);
   };
 
   // ── Empty state ────────────────────────────────
@@ -85,7 +114,7 @@ export default function AuditDashboard() {
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Auditoría de Arquitectura{" "}
-            <span className="bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">Web</span>
+            <span className="bg-gradient-to-r from-primary to-red-300 bg-clip-text text-transparent">Web</span>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Introduce una URL y obtén un diagnóstico completo con análisis de IA local
@@ -100,7 +129,7 @@ export default function AuditDashboard() {
           {[
             { icon: "🔍", title: "Escáner Técnico", desc: "Detección de tecnologías, frameworks y CMS" },
             { icon: "📊", title: "Score 0-100", desc: "Madurez digital, SEO, UX y rendimiento" },
-            { icon: "🧠", title: "Roadmap IA", desc: "Recomendaciones con IA local (gemma3:4b)" },
+            { icon: "🧠", title: "Roadmap IA", desc: "Recomendaciones con IA local" },
           ].map((f) => (
             <div key={f.title} className="rounded-xl border border-border/40 bg-card/20 p-5 backdrop-blur-sm">
               <span className="text-2xl">{f.icon}</span>
@@ -126,15 +155,15 @@ export default function AuditDashboard() {
         <div className="mx-auto max-w-md text-center py-16">
           <div className="mb-4 flex justify-center">
             <div className="relative">
-              <div className="h-16 w-16 animate-spin rounded-full border-4 border-blue-500/20 border-t-blue-500" />
+              <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-3 w-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50 animate-pulse" />
+                <div className="h-3 w-3 rounded-full bg-primary shadow-lg shadow-primary/50 animate-pulse" />
               </div>
             </div>
           </div>
           <p className="text-sm font-medium text-foreground">{SCAN_PHRASES[scanPhase]}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {scanPhase < 3 ? "Extrayendo datos técnicos..." : "Procesando con IA local vía GPU Vulkan"}
+            Redirigiendo a la vista de progreso en tiempo real...
           </p>
           <Progress value={((scanPhase + 1) / SCAN_PHRASES.length) * 100} className="mt-4 h-1.5" />
         </div>
@@ -167,7 +196,7 @@ export default function AuditDashboard() {
               {/* Header */}
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="text-center sm:text-left">
-                  <Badge variant="secondary" className="mb-2 border-0 bg-blue-500/10 text-blue-400">
+                  <Badge variant="secondary" className="mb-2 border-0 bg-primary/10 text-primary">
                     {report.business_niche || "No clasificado"}
                   </Badge>
                   <h2 className="text-lg font-semibold text-foreground">
@@ -249,7 +278,7 @@ export default function AuditDashboard() {
                     <ul className="space-y-1.5">
                       {report.seo.key_issues.map((issue, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <span className="mt-0.5 shrink-0 text-red-400">•</span>
+                          <span className="mt-0.5 shrink-0 text-primary">•</span>
                           {issue}
                         </li>
                       ))}
@@ -267,7 +296,7 @@ export default function AuditDashboard() {
               {/* Footer */}
               <div className="flex items-center justify-between border-t border-border/30 pt-4">
                 <span className="text-[10px] text-muted-foreground/50">
-                  Orchestrator-X · Ollama + gemma3:4b · GPU Vulkan
+                  Orchestrator-X · IA local
                 </span>
                 <Button
                   variant="ghost"

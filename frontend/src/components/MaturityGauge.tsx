@@ -15,9 +15,15 @@ export default function MaturityGauge({ score, size = 180, strokeWidth = 12, lab
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (animatedScore / 100) * circumference;
 
-  // Color interpolation: red → yellow → green → blue
-  const hue = Math.min(score * 1.2, 220); // 0→red, 100→blue
-  const color = score >= 70 ? `hsl(${hue}, 80%, 55%)` : score >= 40 ? `hsl(${hue}, 85%, 50%)` : `hsl(0, 80%, 55%)`;
+  // Escala escarlata: más intenso = mejor
+  const color =
+    score >= 80
+      ? "hsl(10, 95%, 55%)"
+      : score >= 60
+        ? "hsl(10, 85%, 48%)"
+        : score >= 40
+          ? "hsl(10, 75%, 38%)"
+          : "hsl(10, 70%, 28%)";
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimatedScore(score), 200);
@@ -33,9 +39,8 @@ export default function MaturityGauge({ score, size = 180, strokeWidth = 12, lab
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="hsl(var(--border))"
+          stroke="oklch(0.12 0.02 275)"
           strokeWidth={strokeWidth}
-          className="opacity-30"
         />
         {/* Animated progress arc */}
         <circle
@@ -49,11 +54,11 @@ export default function MaturityGauge({ score, size = 180, strokeWidth = 12, lab
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           className="transition-all duration-1000 ease-out"
-          style={{ filter: `drop-shadow(0 0 8px ${color}40)` }}
+          style={{ filter: `drop-shadow(0 0 10px ${color}60)` }}
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="text-4xl font-bold tracking-tight text-foreground" style={{ color }}>
+        <span className="text-4xl font-bold tracking-tight" style={{ color }}>
           {animatedScore}
         </span>
         <span className="text-xs font-medium text-muted-foreground tracking-widest uppercase">

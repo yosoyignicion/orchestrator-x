@@ -98,3 +98,27 @@ export interface OllamaModel {
   size_bytes: number;
   modified_at: string;
 }
+
+// ── Job / Queue types ──────────────────────────────────────────
+
+export interface Job {
+  id: string;
+  type: string;
+  url: string;
+  model: string;
+  business_name: string;
+  sector: string;
+  status: "queued" | "processing" | "done" | "error";
+  progress: number;
+  phase: string;
+  result: string;
+  error: string;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface ProviderStatus {
+  ollama: { online: boolean; models: { name: string }[] };
+  lm_studio: { online: boolean; models: { id: string }[] };
+  active: string | null;
+}

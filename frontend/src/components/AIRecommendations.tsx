@@ -47,7 +47,7 @@ export default function AIRecommendations({ recommendations }: Props) {
           return (
             <Card
               key={i}
-              className="group border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5"
+              className="group border-border/50 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
             >
               <CardHeader className="p-4 pb-2">
                 <div className="flex items-start justify-between">
